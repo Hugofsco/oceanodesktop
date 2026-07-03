@@ -28,6 +28,31 @@ Five surfaces, all driven by one authenticated main process:
 | **Floating notifications** | Transparent toast cards, bottom-right, for background **job start/finish** (polls `/api/jobs` and diffs the registry) and **new mail** (polls `/api/mail` unread deltas). Each source is independently toggleable in `config.json`. Clicking a toast opens the full client. |
 | **Full desktop mode** | **One** Oceano window fullscreen across **all** monitors (`Ctrl+Shift+D` toggles). The SPA's chat + sidebar (and every viewport-anchored overlay — modals, confirm/prompt, toasts, login gate, Settings drawer) is pinned to the **primary** monitor via a view-time CSS override, leaving the other screen(s) as free space to drag Oceano's floating apps onto. Snapping is **monitor-aware**: edge-drag zones, the ▢ maximize button, title double-click, and agent `ui_arrange` all fit the monitor the window is on. Oceano's files are never modified. A click-through exit hint sits centered on the primary monitor. |
 
+## Native action bridge
+
+The other four surfaces are *windows*; this one is a capability. Every request this app makes to
+Oceano — full client, quick chat, and the main process's own polling alike — is tagged
+`X-Oceano-Client: desktop`, so when you're chatting through this app (never a plain browser tab)
+Oceano's agent can reach real native actions on your actual computer:
+
+| Tool | What it does |
+|---|---|
+| `desktop_notify` | Shows a native OS notification. |
+| `desktop_pick_file` / `desktop_save_file` | Native open/save dialogs — returns the REAL absolute path, not a sandboxed browser upload. |
+| `desktop_reveal_path` / `desktop_open_path` | Reveals a path in your file manager, or opens it with its default app. |
+| `desktop_clipboard_read` / `desktop_clipboard_write` | Reads or writes your clipboard. |
+| `desktop_screenshot` | Captures what's actually on your screen (not a browsed page) into the workspace, so it renders inline in chat. |
+
+Two gates, both enforced daemon-side (`oceano/tools/desktop.py`): the client tag above (so a
+browser tab never gets these), and the same taint check `ssh_run`/`mail_send` use — every one of
+these is blocked for the rest of a turn that already read untrusted content (a web page, email, or
+document), so an injected instruction can never trigger a native action on your real computer.
+`desktop_clipboard_read` is the one exception: reading isn't destructive, so it's allowed even
+mid-tainted-turn, but its own result taints the turn going forward the same way `mail_read` does.
+
+`desktop_screenshot` needs Screen Recording permission on macOS (System Settings → Privacy &
+Security) on first use, prompted automatically; Linux and Windows need no extra setup.
+
 ## Architecture
 
 The **main process is the only thing that talks to Oceano.** It holds the session cookie from a
@@ -42,8 +67,15 @@ HTTP/SSE through Electron's `net`. Every window is dumb UI over IPC — no CORS,
                  Oceano daemon  http://127.0.0.1:8800   (untouched)
 ```
 
+The native action bridge runs the other direction: `desktopRpc.js` holds `/api/desktop/stream`
+open on that same session, and the daemon pushes it a command whenever the agent calls a
+`desktop_*` tool — the main process runs the real native action and posts the result back.
+
 - `src/main.js` — windows, tray, shortcuts, pollers, notifications, IPC, per-OS desktop-mode span.
 - `src/oceano.js` — the authenticated client (`/api/me`, `/api/chat` stream, `/api/jobs`, `/api/mail`).
+- `src/desktopRpc.js` — the native action bridge: reconnecting client for `/api/desktop/stream`,
+  runs `Notification` / `dialog` / `clipboard` / `shell` / `desktopCapturer`, posts results to
+  `/api/desktop/result`.
 - `src/preload/*` — thin contextBridge shims per window.
 - `src/windows/*` — quick-chat + notification UIs (abyssal theme).
 - `src/trayIcon.js` — the tray icon, generated at runtime as a `nativeImage`.
@@ -127,8 +159,10 @@ displays, above the menu bar and Dock, matching the Linux behavior.
 - **Geometry saved on a secondary screen** — a floating window left at e.g. x=2500 in desktop mode
   reopens at those raw coordinates in the normal (one-monitor) client, i.e. off-screen until moved
   back. A restore-clamp is a follow-up.
-- **OS-app integration** (open/embed VSCode etc.), native window intents driven by `ui_arrange`,
-  code signing / notarization, auto-update.
+- **Native window intents driven by `ui_arrange`** — snap/arrange *real* OS windows, not just
+  Oceano's own (basic native-app integration now exists: `desktop_open_path`/`desktop_reveal_path`
+  open/reveal a file with its default app).
+- Code signing / notarization, auto-update.
 
 ## License
 
