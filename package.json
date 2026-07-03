@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron . --no-sandbox",
     "start:sandboxed": "electron .",
-    "check": "node --check src/main.js && node --check src/oceano.js && node --check src/trayIcon.js && node --check src/preload/quickchat.js && node --check src/preload/notify.js && node --check src/preload/desktop.js",
+    "check": "node --check src/main.js && node --check src/oceano.js && node --check src/desktopRpc.js && node --check src/trayIcon.js && node --check src/preload/quickchat.js && node --check src/preload/notify.js && node --check src/preload/desktop.js",
     "icon": "node build/make-icon.js",
     "dist": "electron-builder",
     "dist:linux": "electron-builder --linux",

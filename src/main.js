@@ -13,6 +13,7 @@ const { execFile } = require('child_process');
 const x11 = require('x11');
 const OceanoClient = require('./oceano');
 const { makeTrayIcon } = require('./trayIcon');
+const desktopRpc = require('./desktopRpc');
 
 // ---------------- config ----------------
 const DEFAULTS = {
@@ -48,11 +49,20 @@ function init() {
   app.setName('Oceano');
   oceanoSession = session.fromPartition('persist:oceano');
   oceano = new OceanoClient(oceanoSession, CFG.oceanoUrl);
+  // Tag every request this session makes to Oceano — the full client's own fetch() calls included,
+  // not just OceanoClient's — so the daemon knows a real desktop app (not just a browser tab) is on
+  // the other end and can offer desktop-only tools (oceano/tools/desktop.py) for that turn. Scoped to
+  // the Oceano origin so the header never leaks to the Google Fonts CDN the SPA also loads from.
+  oceanoSession.webRequest.onBeforeSendHeaders({ urls: [CFG.oceanoUrl + '/*'] }, (details, callback) => {
+    details.requestHeaders['X-Oceano-Client'] = 'desktop';
+    callback({ requestHeaders: details.requestHeaders });
+  });
 
   setupTray();
   setupShortcuts();
   setupIPC();
   startPollers();
+  desktopRpc.start(oceano);
 
   if (process.env.TEST_DESKTOP) {                    // exercise the real desktop mode, probe layout, then quit
     toggleDesktopMode();
