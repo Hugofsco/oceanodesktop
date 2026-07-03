@@ -1,0 +1,66 @@
+{
+  "name": "oceano-desktop",
+  "version": "0.0.1-alpha",
+  "private": true,
+  "description": "Native desktop client for Oceano — tray quick-chat, floating notifications, and a full-desktop overlay across all monitors. Builds around Oceano's existing HTTP/SSE API; never modifies Oceano.",
+  "main": "src/main.js",
+  "author": "Hugofsco <Hugofsco@users.noreply.github.com>",
+  "homepage": "https://github.com/Hugofsco/OceanoDesktop",
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "start:sandboxed": "electron .",
+    "check": "node --check src/main.js && node --check src/oceano.js && node --check src/trayIcon.js && node --check src/preload/quickchat.js && node --check src/preload/notify.js && node --check src/preload/desktop.js",
+    "icon": "node build/make-icon.js",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac",
+    "dist:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "license": "MIT",
+  "build": {
+    "appId": "com.oceano.desktop",
+    "productName": "Oceano",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "config.json"
+    ],
+    "extraMetadata": {
+      "main": "src/main.js"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "maintainer": "Hugofsco <Hugofsco@users.noreply.github.com>",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "x11": "^2.3.0"
+  }
+}

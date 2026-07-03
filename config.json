@@ -1,0 +1,9 @@
+{
+  "oceanoUrl": "http://127.0.0.1:8800",
+  "pollMs": 3000,
+  "mailPollMs": 60000,
+  "notifyJobs": true,
+  "notifyMail": true,
+  "quickChatShortcut": "Control+Shift+Space",
+  "desktopModeShortcut": "Control+Shift+D"
+}

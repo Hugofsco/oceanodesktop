@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+<title>Oceano notifications</title>
+<style>
+  :root{
+    --panel:#0d2734; --line:#1c4256; --ink:#e4f1f6; --muted:#8fb0bd;
+    --cyan:#3ad6e3; --good:#57c98a; --mail:#e6b455;
+    --mono:ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:transparent;overflow:hidden}
+  #stack{display:flex;flex-direction:column;gap:9px;padding:6px;font-family:var(--sans)}
+  .card{
+    position:relative;background:linear-gradient(180deg,var(--panel),#0a1f2b);
+    border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12px;
+    padding:11px 34px 11px 13px;box-shadow:0 6px 22px rgba(0,0,0,.45);
+    transform:translateX(120%);opacity:0;transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .26s;
+    cursor:pointer;overflow:hidden;
+  }
+  .card.in{transform:translateX(0);opacity:1}
+  .card.out{transform:translateX(120%);opacity:0}
+  .card[data-kind="job-done"]{border-left-color:var(--good)}
+  .card[data-kind="mail"]{border-left-color:var(--mail)}
+  .card[data-kind="info"]{border-left-color:var(--muted)}
+  .t{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--ink);font-weight:600;margin-bottom:3px}
+  .b{font-size:12.5px;color:var(--muted);line-height:1.4;word-wrap:break-word}
+  .x{position:absolute;top:7px;right:9px;color:var(--muted);font-size:15px;line-height:1;border:none;
+    background:transparent;cursor:pointer;padding:2px;opacity:.6}
+  .x:hover{opacity:1;color:var(--cyan)}
+  .bar{position:absolute;left:0;bottom:0;height:2px;background:var(--cyan);opacity:.5;width:100%;transform-origin:left}
+  @media (prefers-reduced-motion:reduce){ .card{transition:opacity .2s} .card.in{transform:none} .card.out{transform:none} .bar{display:none} }
+</style>
+</head>
+<body>
+  <div id="stack"></div>
+<script>
+  const stack = document.getElementById('stack');
+  const TIMERS = new Map();
+  const TTL = { 'job': 7000, 'job-done': 9000, 'mail': 12000, 'info': 8000 };
+
+  function reflow(){ requestAnimationFrame(() => window.notif.resize(stack.scrollHeight + 4)); }
+
+  function remove(id){
+    const el = document.getElementById('n' + id);
+    if (!el) return;
+    const t = TIMERS.get(id); if (t){ clearTimeout(t); TIMERS.delete(id); }
+    el.classList.add('out');
+    window.notif.dismiss(id);
+    setTimeout(() => { el.remove(); reflow(); }, 260);
+  }
+
+  window.notif.onAdd((item) => {
+    const el = document.createElement('div');
+    el.className = 'card'; el.id = 'n' + item.id; el.dataset.kind = item.kind || 'info';
+
+    const t = document.createElement('div'); t.className = 't'; t.textContent = item.title || 'Oceano';
+    const b = document.createElement('div'); b.className = 'b'; b.textContent = item.body || '';
+    const x = document.createElement('button'); x.className = 'x'; x.textContent = '×';
+    x.setAttribute('aria-label', 'dismiss');
+    const bar = document.createElement('div'); bar.className = 'bar';
+
+    x.addEventListener('click', (e) => { e.stopPropagation(); remove(item.id); });
+    el.addEventListener('click', () => { window.notif.action(item.id); remove(item.id); });
+
+    el.appendChild(t); el.appendChild(b); el.appendChild(x); el.appendChild(bar);
+    stack.appendChild(el);
+    reflow();
+    requestAnimationFrame(() => { el.classList.add('in'); });
+
+    const ttl = TTL[item.kind] || 8000;
+    bar.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: ttl, easing: 'linear' });
+    TIMERS.set(item.id, setTimeout(() => remove(item.id), ttl));
+  });
+
+  window.notif.resize(0);   // start hidden
+</script>
+</body>
+</html>
